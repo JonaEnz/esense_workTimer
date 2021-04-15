@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:esense_flutter/esense.dart';
 import 'package:esense_test/movement.dart';
+import 'package:esense_test/pomodoro.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 void main() {
   runApp(MyApp());
@@ -13,7 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'eSense Test',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -24,9 +26,9 @@ class MyApp extends StatelessWidget {
         // or simply save your changes to "hot reload" in a Flutter IDE).
         // Notice that the counter didn't reset back to zero; the application
         // is not restarted.
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.green,
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: MyHomePage(title: 'eSense connection'),
     );
   }
 }
@@ -60,6 +62,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Movement movement = new Movement();
 
+  Pomodoro pomo;
+
   void _incrementCounter() {
     setState(() {
       // This call to setState tells the Flutter framework that something has
@@ -73,6 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override void initState() {
     super.initState();
+    pomo = new Pomodoro(callback: () => _pomoAlarm());
     _connectTest();
   }
 
@@ -204,11 +209,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
         print('SENSOR event: $event');
         setState(() {
-          _deviceName = event.packetIndex.toString();
+          _deviceName = pomo.getTimer();
         });
       });
       print("Listening to Sensors. ${subscription.hashCode}");
+      pomo.start();
     }
     }
+
+  void _pomoAlarm() {
+    setState(() {
+      _deviceStatus = pomo.state.toString();
+    });
+  }
 }
 
