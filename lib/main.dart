@@ -52,9 +52,11 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
   String _deviceStatus = 'unknown';
   var _deviceName = 'unknown';
+
+  final GlobalKey<FormState> _keyDialogForm = new GlobalKey<FormState>();
+  Color _faColor = Colors.red;
 
   ESenseManager manager = ESenseManager();
 
@@ -64,32 +66,31 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Pomodoro pomo;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
+  int _sensorEventsReceived;
 
   @override void initState() {
     super.initState();
     pomo = new Pomodoro(callback: () => _pomoAlarm());
-    _connectTest();
+    //_connectTest();
   }
 
-  Future<void> _connectTest() async {
+  Future<void> _connectTest(eSenseName) async {
 
     bool con = false;
 
     manager.connectionEvents.listen((event) {
       print('CONNECTION event: $event');
       if (event.type == ConnectionType.connected) {
-        _listenToESenseEvents();
-        _sensorEvents();
+        Timer(Duration(milliseconds: 500), () {
+          _listenToESenseEvents();
+
+        });
+        Timer(Duration(seconds: 2), () {
+          _sensorEvents();
+        });
+        setState(() {
+          _faColor = Colors.green;
+        });
       }
 
       setState(() {
@@ -112,7 +113,7 @@ class _MyHomePageState extends State<MyHomePage> {
         }
       });
     });
-    con = await manager.connect('esense-left');
+    con = await manager.connect(eSenseName);
 
     setState(() {
       _deviceStatus = con ? 'connecting' : 'connection failed';
@@ -168,12 +169,55 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _sensorEvents,
-        tooltip: 'Increment',
-        backgroundColor: Colors.blue,
+        onPressed: _showDialog,
+        tooltip: 'Connect',
+        backgroundColor: _faColor,
         child: Icon(Icons.bluetooth),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  void _showDialog() {
+    setState(() {
+      {
+        showDialog(builder: (BuildContext context) {
+          return AlertDialog(
+            title: Form(
+              key: _keyDialogForm,
+              child: Column(
+                children: <Widget>[
+                  Text("Input eSense name:"),
+                  TextFormField(
+                    initialValue: "esense-left",
+                    onSaved: (value) {
+                      _connectTest(value);
+                    },
+                  )
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              ElevatedButton(
+                onPressed: () {
+                  //TODO: Implement me!
+                  _keyDialogForm.currentState.save();
+                  Navigator.pop(context);
+                },
+                child: Text('Save'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: Text('Cancel'),
+              ),
+
+            ],
+          );
+        },
+            context: context);
+      }
+    });
   }
 
   void _listenToESenseEvents() {
@@ -196,35 +240,44 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     });
   });
-  _loopGetProps();
   //_sensorEvents();
   }
 
-  void _loopGetProps() async {
-    await manager.getDeviceName();
-    await manager.setSamplingRate(10);
-  }
-
   void _sensorEvents() async {
-    if (subscription != null) {
-      subscription.cancel();
-      subscription = null;
+    print("_sensorEvents");
+    pomo.start();
+    _tryListening();
     }
-    else {
-      subscription = manager.sensorEvents.listen((event) {
-        List<int> acc = event.accel;
 
-        movement.update(acc);
-        print(movement.movementPercent());
-
-        print('SENSOR event: $event');
-        setState(() {
-          _deviceName = pomo.getTimer();
-        });
-      });
+    void _tryListening() {
+      subscription = manager.sensorEvents.listen(_handleSensorEvent);
       print("Listening to Sensors. ${subscription.hashCode}");
-      pomo.start();
+      _sensorEventsReceived = 0;
+      Timer(Duration(seconds: 3), () async {
+        if (_sensorEventsReceived < 2) {
+          await subscription.cancel();
+          print("reconnecting...");
+          _tryListening();
+        }
+      });
     }
+
+    Function _handleSensorEvent(SensorEvent event) {
+      List<int> acc = event.accel;
+
+      movement.update(acc);
+      print(movement.movementPercent());
+
+      if (movement.movementPercent() > 20 && pomo.isPaused() && pomo.getState() != PomoState.Work) {
+        pomo.start();
+      }
+
+      print('SENSOR event: $event');
+      _sensorEventsReceived++;
+      setState(() {
+        _deviceName = pomo.getTimer();
+      });
+      return null;
     }
 
   void _pomoAlarm() {
