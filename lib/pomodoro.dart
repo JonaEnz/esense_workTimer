@@ -1,13 +1,16 @@
 import 'dart:async';
 
 enum PomoState{
-  Work, Short, Long
+  Work, Short, Long, LockShort, LockLong
 }
 
 class Pomodoro {
   int _pomoLength = 1000 * 20 * 1; //25 minutes
-  int _shortLength = 1000 * 60 * 5; //5 minutes
-  int _longLength = 1000 * 60 * 15; //15 minutes
+  int _shortLength = 1000 * 1 * 5; //5 minutes
+  int _longLength = 1000 * 1 * 15; //15 minutes
+
+  int _shortMinMove = 20;
+  int _longMinMove = 100;
 
   PomoState _state = PomoState.Work;
   bool _isPaused = true;
@@ -21,8 +24,8 @@ class Pomodoro {
     _alarmCallback = callback;
   }
 
-  void start() async {
-    if (!_isPaused) {
+  void start() {
+    if (!canStart()) {
       return;
     }
     _isPaused = false;
@@ -33,6 +36,10 @@ class Pomodoro {
     _timer = Timer.periodic(Duration(seconds: 1), (Timer timer) {
       _update();
     });
+  }
+
+  bool canStart() {
+    return ((_state != PomoState.LockShort && _state != PomoState.LockLong)) && _isPaused;
   }
 
   void pause() {
@@ -50,6 +57,25 @@ class Pomodoro {
     _state = PomoState.Work;
   }
 
+  bool unlock(int moveUnits) {
+    switch (_state) {
+      case PomoState.LockShort:
+        if (moveUnits >= _shortMinMove) {
+          _state = (_timeStart == 0) ? PomoState.Work : PomoState.Short;
+          return true;
+        } else return false;
+        break;
+      case PomoState.LockLong:
+        if (moveUnits >= _longMinMove) {
+          _state = (_timeStart == 0) ? PomoState.Work : PomoState.Long;
+          return true;
+        } else return false;
+        break;
+      default:
+        return false;
+    }
+  }
+
   void changeCallback({Function callback}) {
     if (!_isPaused) {
       throw new Error();
@@ -58,8 +84,8 @@ class Pomodoro {
   }
 
   void _update() {
+    if (_isPaused) return;
     var diff = DateTime.now().toLocal().millisecondsSinceEpoch - _timeStart;
-    //print("diff: $diff");
     switch (_state) {
       case PomoState.Work:
         if (diff >= _pomoLength) {
@@ -70,26 +96,38 @@ class Pomodoro {
           if (_shortCount > 3) {
             _shortCount = 0;
             _state = PomoState.Long;
+            start();
+            _state = PomoState.LockLong;
           } else {
             _state = PomoState.Short;
+            start();
+            _state = PomoState.LockShort;
           }
         }
         break;
       case PomoState.Short:
+      case PomoState.LockShort:
         if (diff >= _shortLength) {
-          _state = PomoState.Work;
+          if (_state == PomoState.Short) {
+            _state = PomoState.Work;
+          }
           _isPaused = true;
           _timeStart = 0;
           _alarmCallback();
         }
         break;
       case PomoState.Long:
+      case PomoState.LockLong:
         if (diff >= _longLength) {
-          _state = PomoState.Work;
+          if (_state == PomoState.Long) {
+            _state = PomoState.Work;
+          }
           _isPaused = true;
           _timeStart = 0;
           _alarmCallback();
         }
+        break;
+      default:
         break;
     }
   }
@@ -98,13 +136,24 @@ class Pomodoro {
     return _isPaused;
   }
 
+  int getMoveGoal() {
+    switch (_state) {
+      case PomoState.LockShort:
+        return _shortMinMove;
+      case PomoState.LockLong:
+        return _longMinMove;
+      default:
+        return -1;
+    }
+  }
+
   PomoState getState() {
     return _state;
   }
 
   String getTimer() {
     if (_timeStart <= 0) {
-      return "00:00:00";
+      return "0:00:00";
     }
     var diff = DateTime.now().toLocal().millisecondsSinceEpoch - _timeStart;
     var res = 0;
@@ -113,11 +162,15 @@ class Pomodoro {
         res = _pomoLength - diff;
         break;
       case PomoState.Short:
+      case PomoState.LockShort:
         res = _shortLength - diff;
         break;
       case PomoState.Long:
+      case PomoState.LockLong:
         res = _longLength - diff;
         break;
+      default:
+        return "Error...";
     }
     print(res);
     int h = (res / (1000 * 60 * 24)).floor();

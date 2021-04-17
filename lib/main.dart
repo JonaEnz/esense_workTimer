@@ -68,9 +68,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
   int _sensorEventsReceived;
 
+  int _moveCount = 0;
+
   @override void initState() {
     super.initState();
     pomo = new Pomodoro(callback: () => _pomoAlarm());
+    if(manager.connected) manager.disconnect();
+    if (subscription != null) subscription.cancel();
     //_connectTest();
   }
 
@@ -231,7 +235,11 @@ class _MyHomePageState extends State<MyHomePage> {
         case ButtonEventChanged:
           var pressed = (event as ButtonEventChanged).pressed;
           if (pressed && pomo.isPaused()) {
-            pomo.start();
+            if (pomo.canStart()) {
+              pomo.start();
+            } else {
+              if(pomo.unlock(999999999)) pomo.start();
+            }
           } else if (pressed) {
             //pomo.pause();
             //TODO: Implement Pause with timer
@@ -268,8 +276,17 @@ class _MyHomePageState extends State<MyHomePage> {
       movement.update(acc);
       print(movement.movementPercent());
 
-      if (movement.movementPercent() > 20 && pomo.isPaused() && pomo.getState() != PomoState.Work) {
-        pomo.start();
+      if (pomo.getState() != PomoState.Work) {
+        _moveCount += movement.isMoving() ? 1 : 0;
+      }
+
+      setState(() {
+        var percentage = (100 * (_moveCount / pomo.getMoveGoal())).floor();
+        _deviceStatus = "Moved: ${percentage >= 100 ? 100 : percentage}%";
+      });
+
+      if (!pomo.canStart()) {
+        pomo.unlock(_moveCount);
       }
 
       print('SENSOR event: $event');
@@ -281,8 +298,9 @@ class _MyHomePageState extends State<MyHomePage> {
     }
 
   void _pomoAlarm() {
+    _moveCount = 0;
     setState(() {
-      _deviceStatus = pomo.getState().toString();
+      //_deviceStatus = pomo.getState().toString();
     });
   }
 }
