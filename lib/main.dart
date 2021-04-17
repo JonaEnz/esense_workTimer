@@ -57,6 +57,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   final GlobalKey<FormState> _keyDialogForm = new GlobalKey<FormState>();
   Color _faColor = Colors.red;
+  IconData _playIcon = Icons.play_arrow;
 
   ESenseManager manager = ESenseManager();
 
@@ -107,6 +108,7 @@ class _MyHomePageState extends State<MyHomePage> {
             break;
           case ConnectionType.disconnected:
             _deviceStatus = 'disconnected';
+            _faColor = Colors.red;
             break;
           case ConnectionType.device_found:
             _deviceStatus = 'device_found';
@@ -159,15 +161,16 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
               '$_deviceStatus',
               style: Theme.of(context).textTheme.headline4,
             ),
             Text(
               '$_deviceName',
               style: Theme.of(context).textTheme.headline4,
+            ),
+            ElevatedButton(
+              onPressed: _playPausedPressed,
+              child: Icon(_playIcon),
             ),
           ],
         ),
@@ -238,11 +241,10 @@ class _MyHomePageState extends State<MyHomePage> {
             if (pomo.canStart()) {
               pomo.start();
             } else {
-              if(pomo.unlock(999999999)) pomo.start();
+              //if(pomo.unlock(999999999)) pomo.start();
             }
           } else if (pressed) {
-            //pomo.pause();
-            //TODO: Implement Pause with timer
+            pomo.pause();
           }
           break;
       }
@@ -252,7 +254,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _sensorEvents() async {
-    print("_sensorEvents");
+    //print("_sensorEvents");
     pomo.start();
     _tryListening();
     }
@@ -281,8 +283,19 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
       setState(() {
+
+        if (pomo.isPaused()) {
+          _playIcon = Icons.pause;
+        } else {
+          _playIcon = Icons.play_arrow;
+        }
+
         var percentage = (100 * (_moveCount / pomo.getMoveGoal())).floor();
-        _deviceStatus = "Moved: ${percentage >= 100 ? 100 : percentage}%";
+        if (percentage >= 0) {
+          _deviceStatus = "Moved: ${percentage >= 100 ? 100 : percentage}%";
+        } else {
+          _deviceStatus = "...";
+        }
       });
 
       if (!pomo.canStart()) {
@@ -302,6 +315,14 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       //_deviceStatus = pomo.getState().toString();
     });
+  }
+
+  void _playPausedPressed() {
+    if (pomo.isPaused()) {
+      pomo.start();
+    } else {
+      pomo.pause();
+    }
   }
 }
 

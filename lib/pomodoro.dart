@@ -5,7 +5,7 @@ enum PomoState{
 }
 
 class Pomodoro {
-  int _pomoLength = 1000 * 20 * 1; //25 minutes
+  int _pomoLength = 1000 * 1 * 25; //25 minutes
   int _shortLength = 1000 * 1 * 5; //5 minutes
   int _longLength = 1000 * 1 * 15; //15 minutes
 
@@ -16,6 +16,7 @@ class Pomodoro {
   bool _isPaused = true;
   int _timeStart = 0;
   int _shortCount = 0;
+  int _pauseOffset = 0;
 
   Function _alarmCallback;
   Timer _timer;
@@ -48,6 +49,8 @@ class Pomodoro {
       _timer.cancel();
     }
     _isPaused = true;
+    _pauseOffset = DateTime.now().toLocal().millisecondsSinceEpoch - _timeStart;
+    _timeStart = 0;
   }
 
   void reset() {
@@ -85,7 +88,7 @@ class Pomodoro {
 
   void _update() {
     if (_isPaused) return;
-    var diff = DateTime.now().toLocal().millisecondsSinceEpoch - _timeStart;
+    var diff = DateTime.now().toLocal().millisecondsSinceEpoch - _timeStart + _pauseOffset;
     switch (_state) {
       case PomoState.Work:
         if (diff >= _pomoLength) {
@@ -155,7 +158,7 @@ class Pomodoro {
     if (_timeStart <= 0) {
       return "0:00:00";
     }
-    var diff = DateTime.now().toLocal().millisecondsSinceEpoch - _timeStart;
+    var diff = DateTime.now().toLocal().millisecondsSinceEpoch - _timeStart + _pauseOffset;
     var res = 0;
     switch(_state) {
       case PomoState.Work:
