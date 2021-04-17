@@ -170,7 +170,8 @@ class _MyHomePageState extends State<MyHomePage> {
       floatingActionButton: FloatingActionButton(
         onPressed: _sensorEvents,
         tooltip: 'Increment',
-        child: Icon(Icons.add),
+        backgroundColor: Colors.blue,
+        child: Icon(Icons.bluetooth),
       ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
@@ -182,6 +183,15 @@ class _MyHomePageState extends State<MyHomePage> {
       switch (event.runtimeType) {
         case DeviceNameRead:
           _deviceName = (event as DeviceNameRead).deviceName;
+          break;
+        case ButtonEventChanged:
+          var pressed = (event as ButtonEventChanged).pressed;
+          if (pressed && pomo.isPaused()) {
+            pomo.start();
+          } else if (pressed) {
+            //pomo.pause();
+            //TODO: Implement Pause with timer
+          }
           break;
       }
     });
@@ -219,7 +229,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _pomoAlarm() {
     setState(() {
-      _deviceStatus = pomo.state.toString();
+      _deviceStatus = pomo.getState().toString();
     });
   }
 }
