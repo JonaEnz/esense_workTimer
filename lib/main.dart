@@ -5,6 +5,7 @@ import 'package:esense_test/movement.dart';
 import 'package:esense_test/pomodoro.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:vibration/vibration.dart';
 
 void main() {
   runApp(MyApp());
@@ -26,9 +27,9 @@ class MyApp extends StatelessWidget {
         // or simply save your changes to "hot reload" in a Flutter IDE).
         // Notice that the counter didn't reset back to zero; the application
         // is not restarted.
-        primarySwatch: Colors.green,
+        primarySwatch: Colors.orange,
       ),
-      home: MyHomePage(title: 'eSense connection'),
+      home: MyHomePage(title: 'eSense Pomodoro'),
     );
   }
 }
@@ -53,7 +54,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   String _deviceStatus = 'unknown';
-  var _deviceName = 'unknown';
+  var _deviceName = '';
 
   final GlobalKey<FormState> _keyDialogForm = new GlobalKey<FormState>();
   Color _faColor = Colors.red;
@@ -70,6 +71,10 @@ class _MyHomePageState extends State<MyHomePage> {
   int _sensorEventsReceived;
 
   int _moveCount = 0;
+
+  bool _playPausedEnabled = true;
+
+  double _workProgress = 0;
 
   @override void initState() {
     super.initState();
@@ -161,15 +166,30 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Text(
-              '$_deviceStatus',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-            Text(
               '$_deviceName',
               style: Theme.of(context).textTheme.headline4,
             ),
+            Container(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                Text(
+                '$_deviceStatus',
+                style: Theme.of(context).textTheme.headline4,
+                ),
+                Visibility(
+                  visible: !_playPausedEnabled,
+                  child: CircularProgressIndicator(
+                    backgroundColor: Colors.blue,
+                    strokeWidth: 7,
+                    valueColor: new AlwaysStoppedAnimation<Color>(Colors.green),
+                    value: _workProgress / 100,
+                  ),
+                ),
+              ]),
+            ),
             ElevatedButton(
-              onPressed: _playPausedPressed,
+              onPressed: _playPausedEnabled ? _playPausedPressed : null,
               child: Icon(_playIcon),
             ),
           ],
@@ -206,7 +226,6 @@ class _MyHomePageState extends State<MyHomePage> {
             actions: <Widget>[
               ElevatedButton(
                 onPressed: () {
-                  //TODO: Implement me!
                   _keyDialogForm.currentState.save();
                   Navigator.pop(context);
                 },
@@ -285,21 +304,26 @@ class _MyHomePageState extends State<MyHomePage> {
       setState(() {
 
         if (pomo.isPaused()) {
-          _playIcon = Icons.pause;
-        } else {
           _playIcon = Icons.play_arrow;
+        } else {
+          _playIcon = Icons.pause;
         }
 
         var percentage = (100 * (_moveCount / pomo.getMoveGoal())).floor();
-        if (percentage >= 0) {
+        if (percentage >= 0 && pomo.getState() != PomoState.Work) {
           _deviceStatus = "Moved: ${percentage >= 100 ? 100 : percentage}%";
+          _workProgress = (percentage >= 100 ? 100 : percentage).toDouble();
+          _playPausedEnabled = false;
         } else {
-          _deviceStatus = "...";
+          _deviceStatus = "";
+          _playPausedEnabled = true;
         }
       });
 
       if (!pomo.canStart()) {
-        pomo.unlock(_moveCount);
+        if (pomo.unlock(_moveCount)) {
+          vibrate(2000, 100);
+        }
       }
 
       print('SENSOR event: $event');
@@ -312,9 +336,27 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _pomoAlarm() {
     _moveCount = 0;
-    setState(() {
-      //_deviceStatus = pomo.getState().toString();
-    });
+    vibrate(1000, 200);
+    }
+
+  void vibrate(int duration, int amplitude) async{
+    if (await Vibration.hasVibrator()) {
+      if (await Vibration.hasAmplitudeControl()) {
+        Vibration.vibrate(duration: duration, amplitude: amplitude);
+      } else {
+        Vibration.vibrate(duration: duration);
+      }
+    }
+  }
+
+  void vibratePattern(List<int> pattern, List<int> intensities) async{
+    if (await Vibration.hasVibrator()) {
+      if (await Vibration.hasAmplitudeControl()) {
+        Vibration.vibrate(pattern: pattern, intensities: intensities);
+      } else {
+        Vibration.vibrate(pattern: pattern);
+      }
+    }
   }
 
   void _playPausedPressed() {
