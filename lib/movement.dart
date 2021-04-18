@@ -1,10 +1,9 @@
 class Movement {
+  static const int MOVEMENT_MIN = 10000;
 
-  static const int MOVEMENT_MIN = 1000;
-
-  List<int> _diff = [0,0,0];
-  List<int> _last = [0,0,0];
-  List<int> _calib = [0,0,0];
+  List<int> _diff = [0, 0, 0];
+  List<int> _last = [0, 0, 0];
+  List<int> _calib = [0, 0, 0];
 
   List<bool> _history = new List.filled(100, false);
   int _historyPos = 0;
@@ -19,11 +18,12 @@ class Movement {
     _last = accel;
 
     _history[_historyPos] = isMoving();
+    //print("diff:  ${_diff.reduce((a, b) => a.abs() + b.abs())}");
     _historyPos = (_historyPos + 1) % 100;
   }
 
   bool isMoving() {
-    return _diff.reduce((a, b) => a+b) > MOVEMENT_MIN;
+    return _diff.reduce((a, b) => a.abs() + b.abs()) > MOVEMENT_MIN;
   }
 
   int movementPercent() {

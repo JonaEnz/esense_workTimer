@@ -1,8 +1,6 @@
 import 'dart:async';
 
-enum PomoState{
-  Work, Short, Long, LockShort, LockLong
-}
+enum PomoState { Work, Short, Long, LockShort, LockLong }
 
 class Pomodoro {
   int _pomoLength = 1000 * 1 * 25; //25 minutes
@@ -10,7 +8,7 @@ class Pomodoro {
   int _longLength = 1000 * 1 * 15; //15 minutes
 
   int _shortMinMove = 20;
-  int _longMinMove = 100;
+  int _longMinMove = 75;
 
   PomoState _state = PomoState.Work;
   bool _isPaused = true;
@@ -40,7 +38,8 @@ class Pomodoro {
   }
 
   bool canStart() {
-    return ((_state != PomoState.LockShort && _state != PomoState.LockLong)) && _isPaused;
+    return ((_state != PomoState.LockShort && _state != PomoState.LockLong)) &&
+        _isPaused;
   }
 
   void pause() {
@@ -66,13 +65,15 @@ class Pomodoro {
         if (moveUnits >= _shortMinMove) {
           _state = (_timeStart == 0) ? PomoState.Work : PomoState.Short;
           return true;
-        } else return false;
+        } else
+          return false;
         break;
       case PomoState.LockLong:
         if (moveUnits >= _longMinMove) {
           _state = (_timeStart == 0) ? PomoState.Work : PomoState.Long;
           return true;
-        } else return false;
+        } else
+          return false;
         break;
       default:
         return false;
@@ -88,15 +89,18 @@ class Pomodoro {
 
   void _update() {
     if (_isPaused) return;
-    var diff = DateTime.now().toLocal().millisecondsSinceEpoch - _timeStart + _pauseOffset;
+    var diff = DateTime.now().toLocal().millisecondsSinceEpoch -
+        _timeStart +
+        _pauseOffset;
     switch (_state) {
       case PomoState.Work:
         if (diff >= _pomoLength) {
+          print("work");
           _alarmCallback();
           _shortCount++;
           _isPaused = true;
           _timeStart = 0;
-          if (_shortCount > 3) {
+          if (_shortCount >= 3) {
             _shortCount = 0;
             _state = PomoState.Long;
             start();
@@ -116,6 +120,7 @@ class Pomodoro {
           }
           _isPaused = true;
           _timeStart = 0;
+          print("short");
           _alarmCallback();
         }
         break;
@@ -127,6 +132,7 @@ class Pomodoro {
           }
           _isPaused = true;
           _timeStart = 0;
+          print("long");
           _alarmCallback();
         }
         break;
@@ -158,9 +164,11 @@ class Pomodoro {
     if (_timeStart <= 0) {
       return "0:00:00";
     }
-    var diff = DateTime.now().toLocal().millisecondsSinceEpoch - _timeStart + _pauseOffset;
+    var diff = DateTime.now().toLocal().millisecondsSinceEpoch -
+        _timeStart +
+        _pauseOffset;
     var res = 0;
-    switch(_state) {
+    switch (_state) {
       case PomoState.Work:
         res = _pomoLength - diff;
         break;
@@ -175,10 +183,14 @@ class Pomodoro {
       default:
         return "Error...";
     }
-    print(res);
+    //print(res);
     int h = (res / (1000 * 60 * 24)).floor();
     int m = (res / (1000 * 60)).floor() % 60;
     int s = (res / (1000)).floor() % 60;
     return "$h:${(m > 9) ? "" : "0"}$m:${(s > 9) ? "" : "0"}$s";
+  }
+
+  int getWorkUnilLB() {
+    return 3 - _shortCount;
   }
 }

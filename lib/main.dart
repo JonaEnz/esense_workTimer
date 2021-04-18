@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'eSense Test',
+      title: 'eSense Work Timer',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -29,7 +29,7 @@ class MyApp extends StatelessWidget {
         // is not restarted.
         primarySwatch: Colors.orange,
       ),
-      home: MyHomePage(title: 'eSense Pomodoro'),
+      home: MyHomePage(title: 'eSense Work Timer'),
     );
   }
 }
@@ -72,20 +72,23 @@ class _MyHomePageState extends State<MyHomePage> {
 
   int _moveCount = 0;
 
-  bool _playPausedEnabled = true;
+  bool _playPausedEnabled = false;
 
   double _workProgress = 0;
 
-  @override void initState() {
+  StreamSubscription<ESenseEvent> _eSenseSub;
+
+  @override
+  void initState() {
     super.initState();
     pomo = new Pomodoro(callback: () => _pomoAlarm());
-    if(manager.connected) manager.disconnect();
+    if (manager.connected) manager.disconnect();
     if (subscription != null) subscription.cancel();
+    if (_eSenseSub != null) _eSenseSub.cancel();
     //_connectTest();
   }
 
   Future<void> _connectTest(eSenseName) async {
-
     bool con = false;
 
     manager.connectionEvents.listen((event) {
@@ -93,7 +96,6 @@ class _MyHomePageState extends State<MyHomePage> {
       if (event.type == ConnectionType.connected) {
         Timer(Duration(milliseconds: 500), () {
           _listenToESenseEvents();
-
         });
         Timer(Duration(seconds: 2), () {
           _sensorEvents();
@@ -107,13 +109,14 @@ class _MyHomePageState extends State<MyHomePage> {
         switch (event.type) {
           case ConnectionType.connected:
             _deviceStatus = 'connected';
+            _playPausedEnabled = true;
             break;
           case ConnectionType.unknown:
             _deviceStatus = 'unknown';
             break;
           case ConnectionType.disconnected:
             _deviceStatus = 'disconnected';
-            _faColor = Colors.red;
+            _faColor = Colors.redAccent;
             break;
           case ConnectionType.device_found:
             _deviceStatus = 'device_found';
@@ -166,21 +169,24 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Text(
+              '${getStateName()}',
+              style: Theme.of(context).textTheme.headline3,
+            ),
+            Text(
               '$_deviceName',
               style: Theme.of(context).textTheme.headline4,
             ),
             Container(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+              child:
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Text(
-                '$_deviceStatus',
-                style: Theme.of(context).textTheme.headline4,
+                  '$_deviceStatus',
+                  style: Theme.of(context).textTheme.headline4,
                 ),
                 Visibility(
                   visible: !_playPausedEnabled,
                   child: CircularProgressIndicator(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: Colors.red,
                     strokeWidth: 7,
                     valueColor: new AlwaysStoppedAnimation<Color>(Colors.green),
                     value: _workProgress / 100,
@@ -188,6 +194,10 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ]),
             ),
+            // Text(
+            //   'Work until long break: ${pomo.getWorkUnilLB()}',
+            //   style: Theme.of(context).textTheme.headline6,
+            // ),
             ElevatedButton(
               onPressed: _playPausedEnabled ? _playPausedPressed : null,
               child: Icon(_playIcon),
@@ -207,139 +217,138 @@ class _MyHomePageState extends State<MyHomePage> {
   void _showDialog() {
     setState(() {
       {
-        showDialog(builder: (BuildContext context) {
-          return AlertDialog(
-            title: Form(
-              key: _keyDialogForm,
-              child: Column(
-                children: <Widget>[
-                  Text("Input eSense name:"),
-                  TextFormField(
-                    initialValue: "esense-left",
-                    onSaved: (value) {
-                      _connectTest(value);
+        showDialog(
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Form(
+                  key: _keyDialogForm,
+                  child: Column(
+                    children: <Widget>[
+                      Text("Input eSense name:"),
+                      TextFormField(
+                        initialValue: "esense-left",
+                        onSaved: (value) {
+                          _connectTest(value);
+                        },
+                      )
+                    ],
+                  ),
+                ),
+                actions: <Widget>[
+                  ElevatedButton(
+                    onPressed: () {
+                      _keyDialogForm.currentState.save();
+                      Navigator.pop(context);
                     },
-                  )
+                    child: Text('Save'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: Text('Cancel'),
+                  ),
                 ],
-              ),
-            ),
-            actions: <Widget>[
-              ElevatedButton(
-                onPressed: () {
-                  _keyDialogForm.currentState.save();
-                  Navigator.pop(context);
-                },
-                child: Text('Save'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text('Cancel'),
-              ),
-
-            ],
-          );
-        },
+              );
+            },
             context: context);
       }
     });
   }
 
   void _listenToESenseEvents() {
-  manager.eSenseEvents.listen((event) {
-    print('Event: $event');
-    setState(() {
-      switch (event.runtimeType) {
-        case DeviceNameRead:
-          _deviceName = (event as DeviceNameRead).deviceName;
-          break;
-        case ButtonEventChanged:
-          var pressed = (event as ButtonEventChanged).pressed;
-          if (pressed && pomo.isPaused()) {
-            if (pomo.canStart()) {
-              pomo.start();
-            } else {
-              //if(pomo.unlock(999999999)) pomo.start();
+    _eSenseSub = manager.eSenseEvents.listen((event) {
+      print('Event: $event');
+      setState(() {
+        switch (event.runtimeType) {
+          case DeviceNameRead:
+            _deviceName = (event as DeviceNameRead).deviceName;
+            break;
+          case ButtonEventChanged:
+            var pressed = (event as ButtonEventChanged).pressed;
+            if (pressed && pomo.isPaused()) {
+              if (pomo.canStart()) {
+                pomo.start();
+              } else {
+                //if(pomo.unlock(999999999)) pomo.start();
+              }
+            } else if (pressed) {
+              pomo.pause();
             }
-          } else if (pressed) {
-            pomo.pause();
-          }
-          break;
-      }
+            break;
+        }
+      });
     });
-  });
-  //_sensorEvents();
+    //_sensorEvents();
   }
 
   void _sensorEvents() async {
     //print("_sensorEvents");
     pomo.start();
     _tryListening();
+  }
+
+  void _tryListening() {
+    subscription = manager.sensorEvents.listen(_handleSensorEvent);
+    print("Listening to Sensors. ${subscription.hashCode}");
+    _sensorEventsReceived = 0;
+    Timer(Duration(seconds: 3), () async {
+      if (_sensorEventsReceived < 2) {
+        await subscription.cancel();
+        print("reconnecting...");
+        _tryListening();
+      }
+    });
+  }
+
+  Function _handleSensorEvent(SensorEvent event) {
+    List<int> acc = event.accel;
+
+    movement.update(acc);
+    //print(movement.movementPercent());
+
+    if (pomo.getState() != PomoState.Work) {
+      _moveCount += movement.isMoving() ? 1 : 0;
     }
 
-    void _tryListening() {
-      subscription = manager.sensorEvents.listen(_handleSensorEvent);
-      print("Listening to Sensors. ${subscription.hashCode}");
-      _sensorEventsReceived = 0;
-      Timer(Duration(seconds: 3), () async {
-        if (_sensorEventsReceived < 2) {
-          await subscription.cancel();
-          print("reconnecting...");
-          _tryListening();
-        }
-      });
-    }
-
-    Function _handleSensorEvent(SensorEvent event) {
-      List<int> acc = event.accel;
-
-      movement.update(acc);
-      print(movement.movementPercent());
-
-      if (pomo.getState() != PomoState.Work) {
-        _moveCount += movement.isMoving() ? 1 : 0;
+    setState(() {
+      if (pomo.isPaused()) {
+        _playIcon = Icons.play_arrow;
+      } else {
+        _playIcon = Icons.pause;
       }
 
-      setState(() {
-
-        if (pomo.isPaused()) {
-          _playIcon = Icons.play_arrow;
-        } else {
-          _playIcon = Icons.pause;
-        }
-
-        var percentage = (100 * (_moveCount / pomo.getMoveGoal())).floor();
-        if (percentage >= 0 && pomo.getState() != PomoState.Work) {
-          _deviceStatus = "Moved: ${percentage >= 100 ? 100 : percentage}%";
-          _workProgress = (percentage >= 100 ? 100 : percentage).toDouble();
-          _playPausedEnabled = false;
-        } else {
-          _deviceStatus = "";
-          _playPausedEnabled = true;
-        }
-      });
-
-      if (!pomo.canStart()) {
-        if (pomo.unlock(_moveCount)) {
-          vibrate(2000, 100);
-        }
+      var percentage = (100 * (_moveCount / pomo.getMoveGoal())).floor();
+      if (percentage >= 0 && pomo.getState() != PomoState.Work) {
+        _deviceStatus = "Moved:    ";
+        _workProgress = (percentage >= 100 ? 100 : percentage).toDouble();
+        _playPausedEnabled = false;
+      } else {
+        _deviceStatus = "";
+        _playPausedEnabled = true;
       }
+    });
 
-      print('SENSOR event: $event');
-      _sensorEventsReceived++;
-      setState(() {
-        _deviceName = pomo.getTimer();
-      });
-      return null;
+    if (!pomo.canStart()) {
+      if (pomo.unlock(_moveCount)) {
+        vibrate(2000, 100);
+      }
     }
+
+    //print('SENSOR event: $event');
+    _sensorEventsReceived++;
+    setState(() {
+      _deviceName = pomo.getTimer();
+    });
+    return null;
+  }
 
   void _pomoAlarm() {
-    _moveCount = 0;
+    if (pomo.getState() != PomoState.LockShort && pomo.getState() != PomoState.LockLong) _moveCount = 0;
     vibrate(1000, 200);
-    }
+  }
 
-  void vibrate(int duration, int amplitude) async{
+  void vibrate(int duration, int amplitude) async {
     if (await Vibration.hasVibrator()) {
       if (await Vibration.hasAmplitudeControl()) {
         Vibration.vibrate(duration: duration, amplitude: amplitude);
@@ -349,7 +358,7 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  void vibratePattern(List<int> pattern, List<int> intensities) async{
+  void vibratePattern(List<int> pattern, List<int> intensities) async {
     if (await Vibration.hasVibrator()) {
       if (await Vibration.hasAmplitudeControl()) {
         Vibration.vibrate(pattern: pattern, intensities: intensities);
@@ -366,5 +375,19 @@ class _MyHomePageState extends State<MyHomePage> {
       pomo.pause();
     }
   }
-}
 
+  String getStateName() {
+    switch (pomo.getState()) {
+      case PomoState.Work:
+        return "Work ${4 - pomo.getWorkUnilLB()}";
+      case PomoState.Short:
+      case PomoState.LockShort:
+        return "Short break ${4 - pomo.getWorkUnilLB()}";
+      case PomoState.Long:
+      case PomoState.LockLong:
+        return "Long break";
+      default:
+        throw new Error();
+    }
+  }
+}
