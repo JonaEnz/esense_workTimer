@@ -1,14 +1,20 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 enum PomoState { Work, Short, Long, LockShort, LockLong }
 
 class Pomodoro {
-  int _pomoLength = 1000 * 1 * 25; //25 minutes
-  int _shortLength = 1000 * 1 * 5; //5 minutes
-  int _longLength = 1000 * 1 * 15; //15 minutes
+  int _pomoLength = kDebugMode ? 1000 * 1 * 25 : 1000 * 60 * 25; //25 minutes
+  int _shortLength = kDebugMode ? 1000 * 1 * 5 : 1000 * 60 * 5; //5 minutes
+  int _longLength = kDebugMode ? 1000 * 1 * 15 : 1000 * 60 * 15; //15 minutes
 
-  int _shortMinMove = 20;
-  int _longMinMove = 75;
+  int _shortMinMove = kDebugMode
+      ? 30
+      : 30 * 10; //30 Sekunden Bewegung, 10 Messungen pro Sekunde
+  int _longMinMove = kDebugMode
+      ? 120
+      : 120 * 10; //120 Sekunden Bewegung, 10 Messungen pro Sekunde
 
   PomoState _state = PomoState.Work;
   bool _isPaused = true;
@@ -48,7 +54,9 @@ class Pomodoro {
       _timer.cancel();
     }
     _isPaused = true;
-    _pauseOffset = DateTime.now().toLocal().millisecondsSinceEpoch - _timeStart;
+    _pauseOffset = DateTime.now().toLocal().millisecondsSinceEpoch -
+        _timeStart +
+        _pauseOffset;
     _timeStart = 0;
   }
 
@@ -56,6 +64,7 @@ class Pomodoro {
     pause();
     _timeStart = 0;
     _shortCount = 0;
+    _pauseOffset = 0;
     _state = PomoState.Work;
   }
 
@@ -99,6 +108,7 @@ class Pomodoro {
           _alarmCallback();
           _shortCount++;
           _isPaused = true;
+          _pauseOffset = 0;
           _timeStart = 0;
           if (_shortCount >= 3) {
             _shortCount = 0;
@@ -117,6 +127,7 @@ class Pomodoro {
         if (diff >= _shortLength) {
           if (_state == PomoState.Short) {
             _state = PomoState.Work;
+            _pauseOffset = 0;
           }
           _isPaused = true;
           _timeStart = 0;
@@ -129,6 +140,7 @@ class Pomodoro {
         if (diff >= _longLength) {
           if (_state == PomoState.Long) {
             _state = PomoState.Work;
+            _pauseOffset = 0;
           }
           _isPaused = true;
           _timeStart = 0;
@@ -161,12 +173,17 @@ class Pomodoro {
   }
 
   String getTimer() {
-    if (_timeStart <= 0) {
+    if (_timeStart <= 0 && !_isPaused) {
       return "0:00:00";
     }
     var diff = DateTime.now().toLocal().millisecondsSinceEpoch -
         _timeStart +
         _pauseOffset;
+
+    if (_isPaused) {
+      diff = _pauseOffset;
+    }
+
     var res = 0;
     switch (_state) {
       case PomoState.Work:

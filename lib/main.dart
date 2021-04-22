@@ -18,17 +18,29 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'eSense Work Timer',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.orange,
-      ),
+          // This is the theme of your application.
+          //
+          // Try running your application with "flutter run". You'll see the
+          // application has a blue toolbar. Then, without quitting the app, try
+          // changing the primarySwatch below to Colors.green and then invoke
+          // "hot reload" (press "r" in the console where you ran "flutter run",
+          // or simply save your changes to "hot reload" in a Flutter IDE).
+          // Notice that the counter didn't reset back to zero; the application
+          // is not restarted.
+          primarySwatch: Colors.orange,
+          brightness: Brightness.light),
+      darkTheme: ThemeData(
+          // This is the theme of your application.
+          //
+          // Try running your application with "flutter run". You'll see the
+          // application has a blue toolbar. Then, without quitting the app, try
+          // changing the primarySwatch below to Colors.green and then invoke
+          // "hot reload" (press "r" in the console where you ran "flutter run",
+          // or simply save your changes to "hot reload" in a Flutter IDE).
+          // Notice that the counter didn't reset back to zero; the application
+          // is not restarted.
+          primarySwatch: Colors.orange,
+          brightness: Brightness.dark),
       home: MyHomePage(title: 'eSense Work Timer'),
     );
   }
@@ -266,14 +278,9 @@ class _MyHomePageState extends State<MyHomePage> {
             break;
           case ButtonEventChanged:
             var pressed = (event as ButtonEventChanged).pressed;
-            if (pressed && pomo.isPaused()) {
-              if (pomo.canStart()) {
-                pomo.start();
-              } else {
-                //if(pomo.unlock(999999999)) pomo.start();
-              }
-            } else if (pressed) {
-              pomo.pause();
+            print(pomo.getState().toString());
+            if (pressed && _playPausedEnabled) {
+              pomo.isPaused() ? pomo.start() : pomo.pause();
             }
             break;
         }
@@ -284,7 +291,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _sensorEvents() async {
     //print("_sensorEvents");
-    pomo.start();
+    //pomo.start();
     _tryListening();
   }
 
@@ -344,7 +351,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _pomoAlarm() {
-    if (pomo.getState() != PomoState.LockShort && pomo.getState() != PomoState.LockLong) _moveCount = 0;
+    if (pomo.getState() != PomoState.LockShort &&
+        pomo.getState() != PomoState.LockLong) _moveCount = 0;
     vibrate(1000, 200);
   }
 
