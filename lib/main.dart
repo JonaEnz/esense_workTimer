@@ -140,6 +140,7 @@ class _MyHomePageState extends State<MyHomePage> {
       });
     });
     con = await manager.connect(eSenseName);
+    _faColor = Colors.yellow;
 
     setState(() {
       _deviceStatus = con ? 'connecting' : 'connection failed';
