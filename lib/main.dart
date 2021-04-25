@@ -65,7 +65,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  String _deviceStatus = 'unknown';
+  String _deviceStatus = 'Bitte verbinden...';
   var _deviceName = '';
 
   final GlobalKey<FormState> _keyDialogForm = new GlobalKey<FormState>();
@@ -120,7 +120,7 @@ class _MyHomePageState extends State<MyHomePage> {
       setState(() {
         switch (event.type) {
           case ConnectionType.connected:
-            _deviceStatus = 'connected';
+            _deviceStatus = 'Bereit';
             _playPausedEnabled = true;
             break;
           case ConnectionType.unknown:
@@ -132,6 +132,7 @@ class _MyHomePageState extends State<MyHomePage> {
             break;
           case ConnectionType.device_found:
             _deviceStatus = 'device_found';
+            _faColor = Colors.redAccent;
             break;
           case ConnectionType.device_not_found:
             _deviceStatus = 'device_not_found';
@@ -197,7 +198,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   style: Theme.of(context).textTheme.headline4,
                 ),
                 Visibility(
-                  visible: !_playPausedEnabled,
+                  visible: (!_playPausedEnabled && manager.connected),
                   child: CircularProgressIndicator(
                     backgroundColor: Colors.red,
                     strokeWidth: 7,
